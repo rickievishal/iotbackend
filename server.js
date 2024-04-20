@@ -1,7 +1,7 @@
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
-
+const os = require('os');
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -23,6 +23,7 @@ const broadcastData = () => {
         }
     });
 };
+const networkInterfaces = os.networkInterfaces();
 
 app.get('/data/:temp/:humidity/:oxy/:heartrate', (req, res) => {
     const { temp, humidity, oxy, heartrate } = req.params;
@@ -46,6 +47,15 @@ app.get('/data', (req, res) => {
     res.json(storedData); // Send the storedData object as JSON response
 });
 
+Object.keys(networkInterfaces).forEach((interfaceName) => {
+    const networkInterface = networkInterfaces[interfaceName];
+    networkInterface.forEach((address) => {
+
+        if (address.family === 'IPv4' && !address.internal) {
+            console.log(`Server running at: http://${address.address}:${port}`);
+        }
+    });
+});
 // Start the server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
