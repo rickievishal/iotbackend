@@ -1,44 +1,66 @@
-const express = require("express")
-const os = require('os');
-const { send } = require("process");
+const express = require("express");
+const http = require("http");
+const WebSocket = require("ws");
 
 const app = express();
-const port = 3000;
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 
-//prints ip of the machine
-const networkInterfaces = os.networkInterfaces();
-
-
-Object.keys(networkInterfaces).forEach((interfaceName) => {
-    const networkInterface = networkInterfaces[interfaceName];
-    networkInterface.forEach((address) => {
-
-        if (address.family === 'IPv4' && !address.internal) {
-            console.log(`Server running at: http://${address.address}:${port}`);
-        }
-    });
-});
-let id = 1;
-let data = [{
+let storedData = {
     id: 0,
     temp: "25",
     oxy: "98",
     heart_rate: "72",
     humidity: "30"
-}]
+};
+
+// Broadcast data to all connected clients
+const broadcastData = () => {
+    const dataString = JSON.stringify(storedData);
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(dataString);
+        }
+    });
+};
 
 app.get('/data/:temp/:humidity/:oxy/:heartrate', (req, res) => {
-    const { temp, oxy, humidity, heartrate } = req.params
-    data.push({
-        id: id, temperature: temp,
-        oxygen: oxy,
-        heart_rate: heartrate,
-        humidity: humidity
-    })
-    res.send(data)
-    id += 1;
-})
-app.use(express.json());
-app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    const { temp, humidity, oxy, heartrate } = req.params;
+
+    // Update the storedData object
+    storedData = {
+        id: storedData.id + 1, // Increment the ID
+        temp: temp,
+        humidity: humidity,
+        oxy: oxy,
+        heart_rate: heartrate
+    };
+
+    // Broadcast the updated data to all clients
+    broadcastData();
+    
+    res.send("Data updated successfully!"); // Send confirmation
+});
+
+app.get('/data', (req, res) => {
+    res.json(storedData); // Send the storedData object as JSON response
+});
+
+// Start the server
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
+
+// WebSocket connection handler
+wss.on("connection", ws => {
+    console.log("New client connected");
+
+    // Send the current data to the newly connected client
+    ws.send(JSON.stringify(storedData));
+
+    // Handle client disconnection
+    ws.on("close", () => {
+        console.log("Client disconnected");
+    });
 });
