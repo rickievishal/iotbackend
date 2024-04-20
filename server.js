@@ -46,7 +46,7 @@ app.get('/data/:temp/:humidity/:oxy/:heartrate', (req, res) => {
 app.get('/data', (req, res) => {
     res.json(storedData); // Send the storedData object as JSON response
 });
-
+const port = 3000
 Object.keys(networkInterfaces).forEach((interfaceName) => {
     const networkInterface = networkInterfaces[interfaceName];
     networkInterface.forEach((address) => {
